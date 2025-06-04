@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>200 TL Günlük Harcama Takibi</title>
+  <!-- Tailwind CDN --> 
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-50 flex flex-col items-center p-6">
+  <div class="w-full max-w-xl bg-white shadow-md rounded-2xl p-6 space-y-6">
+    <!-- Başlık & Dönem -->
+    <div class="text-center">
+      <h1 class="text-2xl font-semibold">Harcama Takibi (200 TL / gün)</h1>
+      <p id="periodLabel" class="text-sm text-gray-500 mt-1"></p>
+    </div>
+
+    <!-- Özet Kartları -->
+    <div class="grid grid-cols-3 gap-4" id="summaryCards">
+      <!-- JS dolduracak -->
+    </div>
+
+    <!-- Yeni Harcama Ekle -->
+    <div class="flex gap-2 items-end">
+      <div class="flex-1">
+        <label class="text-xs text-gray-500" for="dateInput">Tarih</label>
+        <input id="dateInput" type="date" class="w-full border rounded-lg p-2" />
+      </div>
+      <div class="flex-1">
+        <label class="text-xs text-gray-500" for="amountInput">Tutar (₺)</label>
+        <input id="amountInput" type="number" class="w-full border rounded-lg p-2" placeholder="0" />
+      </div>
+      <button id="addBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg h-10 w-10 flex items-center justify-center">
+        +
+      </button>
+    </div>
+
+    <!-- Harcama Listesi -->
+    <div id="expenseList" class="max-h-80 overflow-y-auto border rounded-xl divide-y"></div>
+  </div>
+
+  <script>
+    /***************** YARDIMCI FONKSİYONLAR *****************/
+    const DAILY_LIMIT = 200;
+    const STORAGE_KEY = "spending_tracker_v1";
+
+    const todayISO = () => new Date().toISOString().slice(0, 10);
+
+    const periodFor = (d) => {
+      const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      if (date.getDate() >= 21) {
+        return {
+          start: new Date(date.getFullYear(), date.getMonth(), 21),
+          end: new Date(date.getFullYear(), date.getMonth() + 1, 20, 23, 59, 59),
+        };
+      }
+      return {
+        start: new Date(date.getFullYear(), date.getMonth() - 1, 21),
+        end: new Date(date.getFullYear(), date.getMonth(), 20, 23, 59, 59),
+      };
+    };
+
+    const daysBetween = (a, b) => Math.floor((b - a) / 86400000);
+
+    const load = () => {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch {
+        return [];
+      }
+    };
+    const save = (arr) => localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+
+    /***************** DURUM & UI *****************/
+    let expenses = load();
+
+    const periodLbl = document.getElementById("periodLabel");
+    const summary = document.getElementById("summaryCards");
+    const list = document.getElementById("expenseList");
+
+    const refresh = () => {
+      const now = new Date();
+      const { start, end } = periodFor(now);
+
+      periodLbl.textContent = `${start.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })} – ${end.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}`;
+
+      const periodExpenses = expenses.filter((e) => {
+        const d = new Date(e.date);
+        return d >= start && d <= end;
+      });
+
+      const spent = periodExpenses.reduce((s, e) => s + e.amount, 0);
+      const daysElapsed = daysBetween(start, now) + 1; // bugün dahil
+      const budgetToDate = daysElapsed * DAILY_LIMIT;
+      const balance = budgetToDate - spent;
+
+      // Özet kartları HTML
+      summary.innerHTML = [
+        { label: "Harcanan", val: `${spent.toFixed(0)} ₺` },
+        { label: "Bütçe (bugüne)", val: `${budgetToDate.toFixed(0)} ₺` },
+        {
+          label: "Kalan",
+          val: `${balance.toFixed(0)} ₺`,
+          color: balance < 0 ? "text-red-600" : "text-green-600",
+        },
+      ]
+        .map(
+          (c) => `
+        <div class="text-center">
+          <p class="text-xs text-gray-500">${c.label}</p>
+          <p class="font-bold text-lg ${c.color || ""}">${c.val}</p>
+        </div>`
+        )
+        .join("");
+
+      // Harcama listesi HTML
+      if (periodExpenses.length === 0) {
+        list.innerHTML = `<p class="text-center text-sm p-4 text-gray-500">Bu dönemde henüz kayıt yok.</p>`;
+      } else {
+        list.innerHTML = periodExpenses
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .map(
+            (e) => `
+          <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
+            <div>
+              <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
+              <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}</p>
+            </div>
+            <button data-id="${e.id}" class="text-red-600 hover:text-red-800">Sil</button>
+          </div>`
+          )
+          .join("");
+      }
+    };
+
+    // Yeni harcama ekleme
+    document.getElementById("addBtn").addEventListener("click", () => {
+      const amountInput = document.getElementById("amountInput");
+      const dateInput = document.getElementById("dateInput");
+      const amt = parseFloat(amountInput.value);
+      if (!amt || amt <= 0) return;
+      expenses.push({ id: crypto.randomUUID(), amount: amt, date: dateInput.value });
+      save(expenses);
+      amountInput.value = "";
+      refresh();
+    });
+
+    // Liste içinde sil butonunu yakalamak (event delegation)
+    document.getElementById("expenseList").addEventListener("click", (e) => {
+      if (e.target.matches("button[data-id]")) {
+        const id = e.target.getAttribute("data-id");
+        expenses = expenses.filter((ex) => ex.id !== id);
+        save(expenses);
+        refresh();
+      }
+    });
+
+    // Başlangıç varsayılan tarih bugün
+    document.getElementById("dateInput").value = todayISO();
+
+    refresh();
+  </script>
+</body>
+</html>
