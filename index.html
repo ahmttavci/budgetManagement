@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>200 TL Günlük Harcama Takibi</title>
-  <!-- Tailwind CDN --> 
+  <title>200 TL Günlük Harcama Takibi</title>
+  <!-- Tailwind CDN --> 
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-gray-50 flex flex-col items-center p-6">
   <div class="w-full max-w-xl bg-white shadow-md rounded-2xl p-6 space-y-6">
-    <!-- Başlık & Dönem -->
+    <!-- Başlık & Dönem -->
     <div class="text-center">
-      <h1 class="text-2xl font-semibold">Harcama Takibi (200 TL / gün)</h1>
+      <h1 class="text-2xl font-semibold">Harcama Takibi (200 TL / gün)</h1>
       <p id="periodLabel" class="text-sm text-gray-500 mt-1"></p>
     </div>
 
@@ -27,7 +27,7 @@
         <input id="dateInput" type="date" class="w-full border rounded-lg p-2" />
       </div>
       <div class="flex-1">
-        <label class="text-xs text-gray-500" for="amountInput">Tutar (₺)</label>
+        <label class="text-xs text-gray-500" for="amountInput">Tutar (₺)</label>
         <input id="amountInput" type="number" class="w-full border rounded-lg p-2" placeholder="0" />
       </div>
       <button id="addBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg h-10 w-10 flex items-center justify-center">
@@ -40,7 +40,7 @@
   </div>
 
   <script>
-    /***************** YARDIMCI FONKSİYONLAR *****************/
+    /***************** YARDIMCI FONKSİYONLAR *****************/
     const DAILY_LIMIT = 200;
     const STORAGE_KEY = "spending_tracker_v1";
 
@@ -71,7 +71,7 @@
     };
     const save = (arr) => localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
 
-    /***************** DURUM & UI *****************/
+    /***************** DURUM & UI *****************/
     let expenses = load();
 
     const periodLbl = document.getElementById("periodLabel");
@@ -90,17 +90,17 @@
       });
 
       const spent = periodExpenses.reduce((s, e) => s + e.amount, 0);
-      const daysElapsed = daysBetween(start, now) + 1; // bugün dahil
+      const daysElapsed = daysBetween(start, now) + 1; // bugün dahil
       const budgetToDate = daysElapsed * DAILY_LIMIT;
       const balance = budgetToDate - spent;
 
-      // Özet kartları HTML
+      // Özet kartları HTML
       summary.innerHTML = [
-        { label: "Harcanan", val: `${spent.toFixed(0)} ₺` },
-        { label: "Bütçe (bugüne)", val: `${budgetToDate.toFixed(0)} ₺` },
+        { label: "Harcanan", val: `${spent.toFixed(0)} ₺` },
+        { label: "Bütçe (bugüne)", val: `${budgetToDate.toFixed(0)} ₺` },
         {
           label: "Kalan",
-          val: `${balance.toFixed(0)} ₺`,
+          val: `${balance.toFixed(0)} ₺`,
           color: balance < 0 ? "text-red-600" : "text-green-600",
         },
       ]
@@ -113,7 +113,7 @@
         )
         .join("");
 
-      // Harcama listesi HTML
+      // Harcama listesi HTML
       if (periodExpenses.length === 0) {
         list.innerHTML = `<p class="text-center text-sm p-4 text-gray-500">Bu dönemde henüz kayıt yok.</p>`;
       } else {
@@ -123,7 +123,7 @@
             (e) => `
           <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
             <div>
-              <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
+              <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
               <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}</p>
             </div>
             <button data-id="${e.id}" class="text-red-600 hover:text-red-800">Sil</button>
@@ -133,7 +133,7 @@
       }
     };
 
-    // Yeni harcama ekleme
+    // Yeni harcama ekleme
     document.getElementById("addBtn").addEventListener("click", () => {
       const amountInput = document.getElementById("amountInput");
       const dateInput = document.getElementById("dateInput");
@@ -145,7 +145,7 @@
       refresh();
     });
 
-    // Liste içinde sil butonunu yakalamak (event delegation)
+    // Liste içinde sil butonunu yakalamak (event delegation)
     document.getElementById("expenseList").addEventListener("click", (e) => {
       if (e.target.matches("button[data-id]")) {
         const id = e.target.getAttribute("data-id");
@@ -155,7 +155,7 @@
       }
     });
 
-    // Başlangıç varsayılan tarih bugün
+    // Başlangıç varsayılan tarih bugün
     document.getElementById("dateInput").value = todayISO();
 
     refresh();
