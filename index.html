@@ -16,10 +16,14 @@
     <!-- AYARLAR -->
     <details class="border rounded-xl p-4 bg-gray-50">
       <summary class="cursor-pointer font-medium select-none">Ayarlar</summary>
-      <div class="grid sm:grid-cols-2 gap-4 mt-4">
+      <div class="grid sm:grid-cols-3 gap-4 mt-4">
         <div>
           <label class="text-xs text-gray-500 block mb-1" for="minBalanceInput">Minimum Bakiye (₺)</label>
           <input id="minBalanceInput" type="number" class="w-full border rounded-lg p-2" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 block mb-1" for="currentBalanceInput">Mevcut Bakiye (₺)</label>
+          <input id="currentBalanceInput" type="number" class="w-full border rounded-lg p-2" />
         </div>
         <div>
           <label class="text-xs text-gray-500 block mb-1" for="dailyInterestInput">Günlük Faiz Geliri (₺)</label>
@@ -69,15 +73,12 @@
   </div>
 
   <script>
-    /********** STORAGE KEYS **********/
-    const KEY_EXP = "spend_v3_expenses";
-    const KEY_SET = "spend_v3_settings";
-    const KEY_FIX = "spend_v3_fixed";
+    const KEY_EXP = "spend_v4_expenses";
+    const KEY_SET = "spend_v4_settings";
+    const KEY_FIX = "spend_v4_fixed";
 
-    /********** HELPERS **********/
     const todayISO = () => new Date().toISOString().slice(0, 10);
     const daysBetween = (a, b) => Math.floor((b - a) / 86400000);
-
     const periodFor = (d) => {
       const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       if (date.getDate() >= 21) {
@@ -101,29 +102,27 @@
     };
     const save = (key, val) => localStorage.setItem(key, JSON.stringify(val));
 
-    /********** STATE **********/
     let expenses = load(KEY_EXP, []);
     let fixed = load(KEY_FIX, []);
-    let settings = load(KEY_SET, { minBalance: 400000, dailyInterest: 0 });
+    let settings = load(KEY_SET, { minBalance: 400000, currentBalance: 400000, dailyInterest: 0 });
 
-    /********** DOM ELEMENTS **********/
     const periodLbl = document.getElementById("periodLabel");
     const summary = document.getElementById("summaryCards");
     const list = document.getElementById("expenseList");
     const fixedList = document.getElementById("fixedList");
 
-    // Settings inputs
     document.getElementById("minBalanceInput").value = settings.minBalance;
+    document.getElementById("currentBalanceInput").value = settings.currentBalance;
     document.getElementById("dailyInterestInput").value = settings.dailyInterest;
 
     document.getElementById("saveSettingsBtn").addEventListener("click", () => {
       settings.minBalance = parseFloat(document.getElementById("minBalanceInput").value) || 0;
+      settings.currentBalance = parseFloat(document.getElementById("currentBalanceInput").value) || 0;
       settings.dailyInterest = parseFloat(document.getElementById("dailyInterestInput").value) || 0;
       save(KEY_SET, settings);
       refresh();
     });
 
-    /********** FIXED EXPENSES HANDLERS **********/
     document.getElementById("addFixedBtn").addEventListener("click", () => {
       const name = document.getElementById("fixedNameInput").value.trim();
       const amt = parseFloat(document.getElementById("fixedAmountInput").value);
@@ -152,20 +151,17 @@
         return;
       }
       fixedList.innerHTML = fixed
-        .map(
-          (f) => `
-        <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
-          <div>
-            <p class="text-sm font-medium">${f.name}</p>
-            <p class="text-xs text-gray-500">${f.amount.toFixed(0)} ₺</p>
-          </div>
-          <button data-id="${f.id}" class="text-red-600 hover:text-red-800">Sil</button>
-        </div>`
-        )
+        .map((f) => `
+          <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
+            <div>
+              <p class="text-sm font-medium">${f.name}</p>
+              <p class="text-xs text-gray-500">${f.amount.toFixed(0)} ₺</p>
+            </div>
+            <button data-id="${f.id}" class="text-red-600 hover:text-red-800">Sil</button>
+          </div>`)
         .join("");
     };
 
-    /********** VARIABLE EXPENSES **********/
     document.getElementById("addBtn").addEventListener("click", () => {
       const amt = parseFloat(document.getElementById("amountInput").value);
       if (!amt || amt <= 0) return;
@@ -184,7 +180,6 @@
       }
     });
 
-    /********** MAIN REFRESH **********/
     const refresh = () => {
       const now = new Date();
       const { start, end } = periodFor(now);
@@ -192,7 +187,7 @@
       const elapsedDays = daysBetween(start, now) + 1;
       const remainingDays = daysBetween(now, end) + 1;
 
-      periodLbl.textContent = `${start.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })} – ${end.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}`;
+      periodLbl.textContent = `${start.toLocaleDateString("tr-TR")} – ${end.toLocaleDateString("tr-TR")}`;
 
       const periodExp = expenses.filter((e) => {
         const d = new Date(e.date);
@@ -202,49 +197,43 @@
       const fixedTotal = fixed.reduce((s, f) => s + f.amount, 0);
 
       const totalInterest = settings.dailyInterest * totalDays;
-      const accruedInterest = settings.dailyInterest * elapsedDays;
-      const remainingBudget = totalInterest - fixedTotal - spent;
+      const availableToSpend = settings.currentBalance - settings.minBalance + totalInterest;
+      const remainingBudget = availableToSpend - fixedTotal - spent;
       const dailyLimit = remainingDays > 0 ? remainingBudget / remainingDays : 0;
 
-      // Summary cards
       const cards = [
-        { label: "Faiz (toplam)", val: `${totalInterest.toFixed(0)} ₺` },
+        { label: "Mevcut Bakiye", val: `${settings.currentBalance.toFixed(0)} ₺` },
         { label: "Sabit Gider", val: `${fixedTotal.toFixed(0)} ₺` },
         { label: "Harcanan", val: `${spent.toFixed(0)} ₺` },
         { label: "Kalan Bütçe", val: `${remainingBudget.toFixed(0)} ₺`, color: remainingBudget < 0 ? "text-red-600" : "text-green-600" },
         { label: "Günlük Limit", val: `${Math.max(0, dailyLimit).toFixed(0)} ₺` },
       ];
+
       summary.innerHTML = cards
-        .map(
-          (c) => `
-        <div class="text-center">
-          <p class="text-xs text-gray-500">${c.label}</p>
-          <p class="font-bold text-lg ${c.color || ""}">${c.val}</p>
-        </div>`
-        )
+        .map((c) => `
+          <div class="text-center">
+            <p class="text-xs text-gray-500">${c.label}</p>
+            <p class="font-bold text-lg ${c.color || ""}">${c.val}</p>
+          </div>`)
         .join("");
 
-      // Expense list
       if (periodExp.length === 0) {
         list.innerHTML = `<p class="text-center text-sm p-4 text-gray-500">Bu dönemde henüz kayıt yok.</p>`;
       } else {
         list.innerHTML = periodExp
           .sort((a, b) => new Date(b.date) - new Date(a.date))
-          .map(
-            (e) => `
-          <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
-            <div>
-              <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
-              <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}</p>
-            </div>
-            <button data-id="${e.id}" class="text-red-600 hover:text-red-800">Sil</button>
-          </div>`
-          )
+          .map((e) => `
+            <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
+              <div>
+                <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
+                <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString("tr-TR")}</p>
+              </div>
+              <button data-id="${e.id}" class="text-red-600 hover:text-red-800">Sil</button>
+            </div>`)
           .join("");
       }
     };
 
-    /********** INIT **********/
     document.getElementById("dateInput").value = todayISO();
     renderFixed();
     refresh();
