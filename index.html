@@ -3,22 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>200 TL Günlük Harcama Takibi</title>
-  <!-- Tailwind CDN for quick styling -->
+  <title>Harcama Takibi</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-gray-50 flex flex-col items-center p-6">
-  <div class="w-full max-w-xl bg-white shadow-md rounded-2xl p-6 space-y-6">
-    <!-- Başlık -->
-    <div class="text-center">
+  <div class="w-full max-w-2xl bg-white shadow-md rounded-2xl p-6 space-y-6">
+    <header class="text-center space-y-1">
       <h1 class="text-2xl font-semibold">Harcama Takibi</h1>
-      <p id="periodLabel" class="text-sm text-gray-500 mt-1"></p>
-    </div>
+      <p id="periodLabel" class="text-sm text-gray-500"></p>
+    </header>
 
     <!-- AYARLAR -->
     <details class="border rounded-xl p-4 bg-gray-50">
       <summary class="cursor-pointer font-medium select-none">Ayarlar</summary>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+      <div class="grid sm:grid-cols-2 gap-4 mt-4">
         <div>
           <label class="text-xs text-gray-500 block mb-1" for="minBalanceInput">Minimum Bakiye (₺)</label>
           <input id="minBalanceInput" type="number" class="w-full border rounded-lg p-2" />
@@ -31,11 +29,28 @@
       <button id="saveSettingsBtn" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Kaydet</button>
     </details>
 
-    <!-- Özet -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4" id="summaryCards"></div>
+    <!-- SABİT GİDERLER -->
+    <details class="border rounded-xl p-4 bg-gray-50">
+      <summary class="cursor-pointer font-medium select-none">Sabit Giderler (Ayda 1 kez)</summary>
+      <div class="grid sm:grid-cols-3 gap-2 mt-4 items-end">
+        <div class="sm:col-span-2">
+          <label class="text-xs text-gray-500 block mb-1" for="fixedNameInput">Kalem</label>
+          <input id="fixedNameInput" type="text" placeholder="Kira, Fatura..." class="w-full border rounded-lg p-2" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 block mb-1" for="fixedAmountInput">Tutar (₺)</label>
+          <input id="fixedAmountInput" type="number" class="w-full border rounded-lg p-2" />
+        </div>
+        <button id="addFixedBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg h-10 w-full sm:w-auto px-4">Ekle</button>
+      </div>
+      <div id="fixedList" class="mt-4 divide-y max-h-48 overflow-y-auto"></div>
+    </details>
 
-    <!-- Yeni Harcama Ekle -->
-    <div class="flex gap-2 items-end mt-4">
+    <!-- ÖZET KARTLARI -->
+    <section id="summaryCards" class="grid grid-cols-2 sm:grid-cols-5 gap-4"></section>
+
+    <!-- DEĞİŞKEN HARCAMA EKLE -->
+    <div class="flex flex-col sm:flex-row gap-2 items-end mt-4">
       <div class="flex-1">
         <label class="text-xs text-gray-500" for="dateInput">Tarih</label>
         <input id="dateInput" type="date" class="w-full border rounded-lg p-2" />
@@ -44,22 +59,24 @@
         <label class="text-xs text-gray-500" for="amountInput">Tutar (₺)</label>
         <input id="amountInput" type="number" class="w-full border rounded-lg p-2" placeholder="0" />
       </div>
-      <button id="addBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg h-10 w-10 flex items-center justify-center">
+      <button id="addBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg h-10 px-4 flex items-center justify-center">
         +
       </button>
     </div>
 
-    <!-- Harcama Listesi -->
-    <div id="expenseList" class="max-h-80 overflow-y-auto border rounded-xl divide-y"></div>
+    <!-- DEĞİŞKEN HARCAMA LİSTESİ -->
+    <div id="expenseList" class="max-h-72 overflow-y-auto border rounded-xl divide-y"></div>
   </div>
 
   <script>
-    /***************** Sabitler *****************/
-    const STORAGE_KEY_EXP = "spending_tracker_v2_expenses";
-    const STORAGE_KEY_SET = "spending_tracker_v2_settings";
+    /********** STORAGE KEYS **********/
+    const KEY_EXP = "spend_v3_expenses";
+    const KEY_SET = "spend_v3_settings";
+    const KEY_FIX = "spend_v3_fixed";
 
-    /***************** Yardımcı Fonksiyonlar *****************/
+    /********** HELPERS **********/
     const todayISO = () => new Date().toISOString().slice(0, 10);
+    const daysBetween = (a, b) => Math.floor((b - a) / 86400000);
 
     const periodFor = (d) => {
       const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -75,133 +92,161 @@
       };
     };
 
-    const daysBetween = (a, b) => Math.floor((b - a) / 86400000);
-
-    const loadExpenses = () => {
+    const load = (key, def) => {
       try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY_EXP)) || [];
+        return JSON.parse(localStorage.getItem(key)) || def;
       } catch {
-        return [];
+        return def;
       }
     };
-    const saveExpenses = (arr) => localStorage.setItem(STORAGE_KEY_EXP, JSON.stringify(arr));
+    const save = (key, val) => localStorage.setItem(key, JSON.stringify(val));
 
-    const defaultSettings = { minBalance: 400000, dailyInterest: 0 };
-    const loadSettings = () => {
-      try {
-        return { ...defaultSettings, ...(JSON.parse(localStorage.getItem(STORAGE_KEY_SET)) || {}) };
-      } catch {
-        return defaultSettings;
-      }
-    };
-    const saveSettings = (set) => localStorage.setItem(STORAGE_KEY_SET, JSON.stringify(set));
+    /********** STATE **********/
+    let expenses = load(KEY_EXP, []);
+    let fixed = load(KEY_FIX, []);
+    let settings = load(KEY_SET, { minBalance: 400000, dailyInterest: 0 });
 
-    /***************** Durum *****************/
-    let expenses = loadExpenses();
-    let settings = loadSettings();
-
-    /***************** DOM *****************/
+    /********** DOM ELEMENTS **********/
     const periodLbl = document.getElementById("periodLabel");
     const summary = document.getElementById("summaryCards");
     const list = document.getElementById("expenseList");
+    const fixedList = document.getElementById("fixedList");
 
     // Settings inputs
     document.getElementById("minBalanceInput").value = settings.minBalance;
     document.getElementById("dailyInterestInput").value = settings.dailyInterest;
+
     document.getElementById("saveSettingsBtn").addEventListener("click", () => {
       settings.minBalance = parseFloat(document.getElementById("minBalanceInput").value) || 0;
       settings.dailyInterest = parseFloat(document.getElementById("dailyInterestInput").value) || 0;
-      saveSettings(settings);
+      save(KEY_SET, settings);
       refresh();
     });
 
-    /***************** İşlevler *****************/
+    /********** FIXED EXPENSES HANDLERS **********/
+    document.getElementById("addFixedBtn").addEventListener("click", () => {
+      const name = document.getElementById("fixedNameInput").value.trim();
+      const amt = parseFloat(document.getElementById("fixedAmountInput").value);
+      if (!name || !amt || amt <= 0) return;
+      fixed.push({ id: crypto.randomUUID(), name, amount: amt });
+      save(KEY_FIX, fixed);
+      document.getElementById("fixedNameInput").value = "";
+      document.getElementById("fixedAmountInput").value = "";
+      renderFixed();
+      refresh();
+    });
+
+    fixedList.addEventListener("click", (e) => {
+      if (e.target.matches("button[data-id]")) {
+        const id = e.target.getAttribute("data-id");
+        fixed = fixed.filter((f) => f.id !== id);
+        save(KEY_FIX, fixed);
+        renderFixed();
+        refresh();
+      }
+    });
+
+    const renderFixed = () => {
+      if (fixed.length === 0) {
+        fixedList.innerHTML = `<p class="text-center text-sm p-2 text-gray-500">Sabit gider yok.</p>`;
+        return;
+      }
+      fixedList.innerHTML = fixed
+        .map(
+          (f) => `
+        <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
+          <div>
+            <p class="text-sm font-medium">${f.name}</p>
+            <p class="text-xs text-gray-500">${f.amount.toFixed(0)} ₺</p>
+          </div>
+          <button data-id="${f.id}" class="text-red-600 hover:text-red-800">Sil</button>
+        </div>`
+        )
+        .join("");
+    };
+
+    /********** VARIABLE EXPENSES **********/
+    document.getElementById("addBtn").addEventListener("click", () => {
+      const amt = parseFloat(document.getElementById("amountInput").value);
+      if (!amt || amt <= 0) return;
+      expenses.push({ id: crypto.randomUUID(), amount: amt, date: document.getElementById("dateInput").value });
+      save(KEY_EXP, expenses);
+      document.getElementById("amountInput").value = "";
+      refresh();
+    });
+
+    list.addEventListener("click", (e) => {
+      if (e.target.matches("button[data-id]")) {
+        const id = e.target.getAttribute("data-id");
+        expenses = expenses.filter((ex) => ex.id !== id);
+        save(KEY_EXP, expenses);
+        refresh();
+      }
+    });
+
+    /********** MAIN REFRESH **********/
     const refresh = () => {
       const now = new Date();
       const { start, end } = periodFor(now);
+      const totalDays = daysBetween(start, end) + 1;
+      const elapsedDays = daysBetween(start, now) + 1;
+      const remainingDays = daysBetween(now, end) + 1;
 
-      // Etiket
       periodLbl.textContent = `${start.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })} – ${end.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}`;
 
-      // Dönem harcamaları
-      const periodExpenses = expenses.filter((e) => {
+      const periodExp = expenses.filter((e) => {
         const d = new Date(e.date);
         return d >= start && d <= end;
       });
-      const spent = periodExpenses.reduce((s, e) => s + e.amount, 0);
+      const spent = periodExp.reduce((s, e) => s + e.amount, 0);
+      const fixedTotal = fixed.reduce((s, f) => s + f.amount, 0);
 
-      // Günlük veriler
-      const elapsedDays = daysBetween(start, now) + 1;
-      const remainingDays = daysBetween(now, end) + 1; // bugünkü dahil
+      const totalInterest = settings.dailyInterest * totalDays;
+      const accruedInterest = settings.dailyInterest * elapsedDays;
+      const remainingBudget = totalInterest - fixedTotal - spent;
+      const dailyLimit = remainingDays > 0 ? remainingBudget / remainingDays : 0;
 
-      const dailyInterest = settings.dailyInterest;
-      const accruedInterest = dailyInterest * elapsedDays;
-      const cushion = accruedInterest - spent; // pozitif ise faiz > harcama
-      const maxDailyAllowed = dailyInterest + (cushion / remainingDays);
-
-      // Özet kartları
-      const cardData = [
+      // Summary cards
+      const cards = [
+        { label: "Faiz (toplam)", val: `${totalInterest.toFixed(0)} ₺` },
+        { label: "Sabit Gider", val: `${fixedTotal.toFixed(0)} ₺` },
         { label: "Harcanan", val: `${spent.toFixed(0)} ₺` },
-        { label: "Faiz (bugüne)", val: `${accruedInterest.toFixed(0)} ₺` },
-        { label: "Kalan / Açık", val: `${cushion.toFixed(0)} ₺`, color: cushion < 0 ? "text-red-600" : "text-green-600" },
-        { label: "Günlük Limit", val: `${Math.max(0, maxDailyAllowed).toFixed(0)} ₺` },
+        { label: "Kalan Bütçe", val: `${remainingBudget.toFixed(0)} ₺`, color: remainingBudget < 0 ? "text-red-600" : "text-green-600" },
+        { label: "Günlük Limit", val: `${Math.max(0, dailyLimit).toFixed(0)} ₺` },
       ];
-
-      summary.innerHTML = cardData
+      summary.innerHTML = cards
         .map(
           (c) => `
-          <div class="text-center">
-            <p class="text-xs text-gray-500">${c.label}</p>
-            <p class="font-bold text-lg ${c.color || ""}">${c.val}</p>
-          </div>`
+        <div class="text-center">
+          <p class="text-xs text-gray-500">${c.label}</p>
+          <p class="font-bold text-lg ${c.color || ""}">${c.val}</p>
+        </div>`
         )
         .join("");
 
-      // Harcama listesi
-      if (periodExpenses.length === 0) {
+      // Expense list
+      if (periodExp.length === 0) {
         list.innerHTML = `<p class="text-center text-sm p-4 text-gray-500">Bu dönemde henüz kayıt yok.</p>`;
       } else {
-        list.innerHTML = periodExpenses
+        list.innerHTML = periodExp
           .sort((a, b) => new Date(b.date) - new Date(a.date))
           .map(
             (e) => `
-            <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
-              <div>
-                <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
-                <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}</p>
-              </div>
-              <button data-id="${e.id}" class="text-red-600 hover:text-red-800">Sil</button>
-            </div>`
+          <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
+            <div>
+              <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
+              <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}</p>
+            </div>
+            <button data-id="${e.id}" class="text-red-600 hover:text-red-800">Sil</button>
+          </div>`
           )
           .join("");
       }
     };
 
-    // Yeni harcama ekleme
-    document.getElementById("addBtn").addEventListener("click", () => {
-      const amountInput = document.getElementById("amountInput");
-      const dateInput = document.getElementById("dateInput");
-      const amt = parseFloat(amountInput.value);
-      if (!amt || amt <= 0) return;
-      expenses.push({ id: crypto.randomUUID(), amount: amt, date: dateInput.value });
-      saveExpenses(expenses);
-      amountInput.value = "";
-      refresh();
-    });
-
-    // Liste içinde silme
-    document.getElementById("expenseList").addEventListener("click", (e) => {
-      if (e.target.matches("button[data-id]")) {
-        const id = e.target.getAttribute("data-id");
-        expenses = expenses.filter((ex) => ex.id !== id);
-        saveExpenses(expenses);
-        refresh();
-      }
-    });
-
-    // Başlangıç varsayılan tarih
+    /********** INIT **********/
     document.getElementById("dateInput").value = todayISO();
-
+    renderFixed();
     refresh();
   </script>
 </body>
