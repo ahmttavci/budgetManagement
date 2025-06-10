@@ -207,7 +207,7 @@
       const accruedInterest = settings.dailyInterest * elapsedDays;
       const availableToSpend = settings.currentBalance - settings.minBalance + accruedInterest;
       const remainingBudget = availableToSpend - fixedTotal - spent;
-      const dailyLimit = remainingDays > 0 ? remainingBudget / remainingDays : 0;
+      const dailyLimit = remainingDays > 0 ? remainingBudget / remainingDays : remainingBudget;
       console.log(`spend: ${spent}\nfixed: ${fixedTotal}\navailable: ${availableToSpend}\nremaining: ${remainingBudget}`)
 
       const cards = [
@@ -215,7 +215,7 @@
         { label: "Sabit Gider", val: `${fixedTotal.toFixed(0)} ₺` },
         { label: "Harcanan", val: `${spent.toFixed(0)} ₺` },
         { label: "Kalan Bütçe", val: `${remainingBudget.toFixed(0)} ₺`, color: remainingBudget < 0 ? "text-red-600" : "text-green-600" },
-        { label: "Günlük Limit", val: `${Math.max(0, dailyLimit).toFixed(0)} ₺` },
+        { label: "Günlük Limit", val: `${dailyLimit.toFixed(0)} ₺`, color: dailyLimit < 0 ? "text-red-600" : "" },
       ];
 
       summary.innerHTML = cards
