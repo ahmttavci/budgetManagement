@@ -214,7 +214,7 @@
         { label: "Mevcut Bakiye", val: `${settings.currentBalance.toFixed(0)} ₺` },
         { label: "Sabit Gider", val: `${fixedTotal.toFixed(0)} ₺` },
         { label: "Harcanan", val: `${spent.toFixed(0)} ₺` },
-        { label: "Kalan Bütçe", val: `${remainingBudget.toFixed(0)} ₺`, color: remainingBudget < 0 ? "text-red-600" : "text-green-600" },
+        { label: "Kalan Bütçe", val: `${remainingBudget.toFixed(0)}(faiz:${accruedInterest}TL) ₺`, color: remainingBudget < 0 ? "text-red-600" : "text-green-600" },
         { label: "Günlük Limit", val: `${Math.max(0, dailyLimit).toFixed(0)} ₺` },
       ];
 
