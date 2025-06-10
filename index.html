@@ -192,7 +192,7 @@
       const { start, end } = periodFor(now);
       const totalDays = daysBetween(start, end) + 1;
       const elapsedDays = daysBetween(start, now) + 1;
-      const remainingDays = daysBetween(now, end) + 1;
+      const remainingDays = daysBetween(now, end);
       
 
       periodLbl.textContent = `${start.toLocaleDateString("tr-TR")} – ${end.toLocaleDateString("tr-TR")}`;
