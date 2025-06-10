@@ -81,15 +81,15 @@
     const daysBetween = (a, b) => Math.floor((b - a) / 86400000);
     const periodFor = (d) => {
       const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      if (date.getDate() >= 21) {
+      if (date.getDate() >= 11) {
         return {
-          start: new Date(date.getFullYear(), date.getMonth(), 21),
-          end: new Date(date.getFullYear(), date.getMonth() + 1, 20, 23, 59, 59),
+          start: new Date(date.getFullYear(), date.getMonth(), 11),
+          end: new Date(date.getFullYear(), date.getMonth() + 1, 10, 23, 59, 59),
         };
       }
       return {
-        start: new Date(date.getFullYear(), date.getMonth() - 1, 21),
-        end: new Date(date.getFullYear(), date.getMonth(), 20, 23, 59, 59),
+        start: new Date(date.getFullYear(), date.getMonth() - 1, 11),
+        end: new Date(date.getFullYear(), date.getMonth(), 10, 23, 59, 59),
       };
     };
 
@@ -204,8 +204,8 @@
       const spent = periodExp.reduce((s, e) => s + e.amount, 0);
       const fixedTotal = fixed.reduce((s, f) => s + f.amount, 0);
 
-      const totalInterest = settings.dailyInterest * totalDays;
-      const availableToSpend = settings.currentBalance - settings.minBalance + totalInterest;
+      const accruedInterest = settings.dailyInterest * elapsedDays;
+      const availableToSpend = settings.currentBalance - settings.minBalance + accruedInterest;
       const remainingBudget = availableToSpend - fixedTotal - spent;
       const dailyLimit = remainingDays > 0 ? remainingBudget / remainingDays : 0;
       console.log(`spend: ${spent}\nfixed: ${fixedTotal}\navailable: ${availableToSpend}\nremaining: ${remainingBudget}`)
