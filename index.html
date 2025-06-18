@@ -186,63 +186,94 @@
       }
     });
 
-    const refresh = () => {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0); // her tarayıcıda günü 00:00'a sabitle
-      const { start, end } = periodFor(now);
-      const totalDays = daysBetween(start, end) + 1;
-      const elapsedDays = daysBetween(start, now) + 1;
-      const remainingDays = daysBetween(now, end);
-      
+const refresh = () => {
+  /* 0. Tarihi sabitle ve dönem bilgilerini al */
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);                  // günü sabit 00:00
+  const { start, end } = periodFor(now);     // 11→10 dönemi
+  const totalDays    = daysBetween(start, end) + 1;
+  const elapsedDays  = daysBetween(start, now)  + 1;
+  const remainingDays = daysBetween(now, end); // bugün hariç—rapor için
 
-      periodLbl.textContent = `${start.toLocaleDateString("tr-TR")} – ${end.toLocaleDateString("tr-TR")}`;
+  /* 1. Başlık */
+  periodLbl.textContent =
+    `${start.toLocaleDateString("tr-TR")} – ${end.toLocaleDateString("tr-TR")}`;
 
-      const periodExp = expenses.filter((e) => {
-        const d = new Date(e.date);
-        return d >= start && d <= end;
-      });
-      const spent = periodExp.reduce((s, e) => s + e.amount, 0);
-      const fixedTotal = fixed.reduce((s, f) => s + f.amount, 0);
+  /* 2. Harcama verileri */
+  const periodExp = expenses.filter(e => {
+    const d = new Date(e.date);
+    return d >= start && d <= end;
+  });
+  const spent      = periodExp.reduce((s, e) => s + e.amount, 0);
+  const fixedTotal = fixed.reduce((s, f) => s + f.amount, 0);
 
-      const accruedInterest = settings.dailyInterest * elapsedDays;
-      const availableToSpend = settings.currentBalance - settings.minBalance + accruedInterest;
-      const remainingBudget = availableToSpend - fixedTotal - spent;
-      const dailyLimit = remainingDays > 0 ? remainingBudget / remainingDays : remainingBudget;
-      console.log(`spend: ${spent}\nfixed: ${fixedTotal}\navailable: ${availableToSpend}\nremaining: ${remainingBudget}`)
+  /* 3. Faiz + harcanabilir tutar */
+  const accruedInterest = settings.dailyInterest * elapsedDays;
+  const availableToSpend =
+    settings.currentBalance - settings.minBalance + accruedInterest;
+  const remainingBudget = availableToSpend - fixedTotal - spent;
 
-      const cards = [
-        { label: "Mevcut Bakiye", val: `${settings.currentBalance.toFixed(0)} ₺` },
-        { label: "Sabit Gider", val: `${fixedTotal.toFixed(0)} ₺` },
-        { label: "Harcanan", val: `${spent.toFixed(0)} ₺` },
-        { label: "Kalan Bütçe", val: `${remainingBudget.toFixed(0)} ₺`, color: remainingBudget < 0 ? "text-red-600" : "text-green-600" },
-        { label: "Günlük Limit", val: `${dailyLimit.toFixed(0)} ₺`, color: dailyLimit < 0 ? "text-red-600" : "" },
-      ];
+  /* 4. En yakın 20’sine kadar güvenli günlük limit */
+  const nextPayDate = (() => {
+    const d = new Date(now);
+    d.setDate(20);
+    if (now.getDate() >= 20) d.setMonth(d.getMonth() + 1); // 20’si geçildiyse gelecek ay
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+  const daysToPay = Math.max(1, daysBetween(now, nextPayDate)); // bugün hariç
+  const dailyLimit = remainingBudget / daysToPay;               // negatif olabilir
 
-      summary.innerHTML = cards
-        .map((c) => `
-          <div class="text-center">
-            <p class="text-xs text-gray-500">${c.label}</p>
-            <p class="font-bold text-lg ${c.color || ""}">${c.val}</p>
-          </div>`)
-        .join("");
+  console.log(
+    `spend: ${spent}\nfixed: ${fixedTotal}\navailable: ${availableToSpend}\nremaining: ${remainingBudget}`
+  );
 
-      if (periodExp.length === 0) {
-        list.innerHTML = `<p class="text-center text-sm p-4 text-gray-500">Bu dönemde henüz kayıt yok.</p>`;
-      } else {
-        list.innerHTML = periodExp
-          .sort((a, b) => new Date(b.date) - new Date(a.date))
-          .map((e) => `
-            <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
-              <div>
-                <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
-                <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString("tr-TR")}</p>
-              </div>
-              <button data-id="${e.id}" class="text-red-600 hover:text-red-800">Sil</button>
-            </div>`)
-          .join("");
-      }
-    };
+  /* 5. Özet kartları */
+  const cards = [
+    { label: "Mevcut Bakiye", val: `${settings.currentBalance.toFixed(0)} ₺` },
+    { label: "Sabit Gider",    val: `${fixedTotal.toFixed(0)} ₺` },
+    { label: "Harcanan",       val: `${spent.toFixed(0)} ₺` },
+    {
+      label: "Kalan Bütçe",
+      val: `${remainingBudget.toFixed(0)} ₺`,
+      color: remainingBudget < 0 ? "text-red-600" : "text-green-600",
+    },
+    {
+      label: "Günlük Limit",
+      val: `${dailyLimit.toFixed(0)} ₺`,
+      color: dailyLimit < 0 ? "text-red-600" : "" },
+  ];
 
+  summary.innerHTML = cards
+    .map(
+      (c) => `
+        <div class="text-center">
+          <p class="text-xs text-gray-500">${c.label}</p>
+          <p class="font-bold text-lg ${c.color || ""}">${c.val}</p>
+        </div>`
+    )
+    .join("");
+
+  /* 6. Harcama listesi */
+  if (periodExp.length === 0) {
+    list.innerHTML =
+      `<p class="text-center text-sm p-4 text-gray-500">Bu dönemde henüz kayıt yok.</p>`;
+  } else {
+    list.innerHTML = periodExp
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map(
+        (e) => `
+          <div class="flex justify-between items-center px-3 py-2 hover:bg-gray-100">
+            <div>
+              <p class="text-sm font-medium">${e.amount.toFixed(0)} ₺</p>
+              <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString("tr-TR")}</p>
+            </div>
+            <button data-id="${e.id}" class="text-red-600 hover:text-red-800">Sil</button>
+          </div>`
+      )
+      .join("");
+  }
+};
     document.getElementById("dateInput").value = todayISO();
     renderFixed();
     refresh();
