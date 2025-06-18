@@ -214,15 +214,9 @@ const refresh = () => {
   const remainingBudget = availableToSpend - fixedTotal - spent;
 
   /* 4. En yakın 20’sine kadar güvenli günlük limit */
-  const nextPayDate = (() => {
-    const d = new Date(now);
-    d.setDate(20);
-    if (now.getDate() >= 20) d.setMonth(d.getMonth() + 1); // 20’si geçildiyse gelecek ay
-    d.setHours(0, 0, 0, 0);
-    return d;
-  })();
-  const daysToPay = Math.max(1, daysBetween(now, nextPayDate)); // bugün hariç
-  const dailyLimit = remainingBudget / daysToPay;               // negatif olabilir
+  /* Bütçeyi bugün → +30 gün (yaklaşık 1 ay) aralığına yay */
+  const daysAhead  = remainingDays + 30;          // dönem sonu + 1 ay
+  const dailyLimit = remainingBudget / daysAhead; // negatif olabilir
 
   console.log(
     `spend: ${spent}\nfixed: ${fixedTotal}\navailable: ${availableToSpend}\nremaining: ${remainingBudget}`
@@ -239,9 +233,9 @@ const refresh = () => {
       color: remainingBudget < 0 ? "text-red-600" : "text-green-600",
     },
     {
-      label: "Günlük Limit",
-      val: `${dailyLimit.toFixed(0)} ₺`,
-      color: dailyLimit < 0 ? "text-red-600" : "" },
+      label: "Günlük Limit (30 gün)", val: `${dailyLimit.toFixed(0)} ₺`,
+      color: dailyLimit < 0 ? "text-red-600" : ""
+    },
   ];
 
   summary.innerHTML = cards
