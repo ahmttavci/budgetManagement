@@ -212,13 +212,15 @@ const refresh = () => {
   const dailyFixed = fixedTotal / totalDays;
   const dailyLimit = settings.dailyInterest - dailyFixed;
 
-  const futureInterest = settings.dailyInterest * remainingDays;
-  const adjustedRemainingBudget = (settings.currentBalance - settings.minBalance) + futureInterest - fixedTotal - spent;
-  const realisticDailyLimit = adjustedRemainingBudget / remainingDays;
+  const totalInterest = settings.dailyInterest * totalDays;
+  const realisticRemainingBudget = (settings.currentBalance - settings.minBalance) - fixedTotal - spent;
+  const realisticDailyLimit = realisticRemainingBudget / totalDays;
+  const avarageSpent = spent / totalDays;
 
   /* 5. Özet kartları */
   const cards = [
     { label: "Günlük Sabit Gider", val: `${dailyFixed.toFixed(0)} ₺` },
+    { label: "Ortalama Günlük Harcama", val: `${avarageSpent.toFixed(0)} ₺` },
     {
       label: "Günlük Limit (Teorik)", val: `${dailyLimit.toFixed(0)} ₺`,
       color: dailyLimit < 0 ? "text-red-600" : ""
