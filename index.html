@@ -212,17 +212,22 @@ const refresh = () => {
   const dailyFixed = fixedTotal / totalDays;
   const dailyLimit = settings.dailyInterest - dailyFixed;
 
+  const futureInterest = settings.dailyInterest * remainingDays;
+  const adjustedRemainingBudget = (settings.currentBalance - settings.minBalance) + futureInterest - fixedTotal - spent;
+  const realisticDailyLimit = adjustedRemainingBudget / remainingDays;
+
   /* 5. Özet kartları */
   const cards = [
-    { label: "Mevcut Bakiye", val: `${settings.currentBalance.toFixed(0)} ₺` },
-    { label: "Sabit Gider",    val: `${fixedTotal.toFixed(0)} ₺` },
-    { label: "Harcanan",       val: `${spent.toFixed(0)} ₺` },
-    { label: "Günlük Faiz", val: `${settings.dailyInterest.toFixed(0)} ₺` },
     { label: "Günlük Sabit Gider", val: `${dailyFixed.toFixed(0)} ₺` },
     {
-      label: "Günlük Limit (30 gün)", val: `${dailyLimit.toFixed(0)} ₺`,
+      label: "Günlük Limit (Teorik)", val: `${dailyLimit.toFixed(0)} ₺`,
       color: dailyLimit < 0 ? "text-red-600" : ""
     },
+    {
+      label: "Günlük Limit (Gerçekçi)",
+      val: `${realisticDailyLimit.toFixed(0)} ₺`,
+      color: realisticDailyLimit < 0 ? "text-red-600" : "",
+    }
   ];
 
   summary.innerHTML = cards
