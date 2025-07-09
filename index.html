@@ -208,15 +208,9 @@ const refresh = () => {
   const fixedTotal = fixed.reduce((s, f) => s + f.amount, 0);
 
   /* 3. Faiz + harcanabilir tutar */
-  const accruedInterest = settings.dailyInterest * elapsedDays;
-  const availableToSpend =
-    settings.currentBalance - settings.minBalance + accruedInterest;
-  const remainingBudget = availableToSpend - fixedTotal - spent;
-
-  /* 4. En yakın 20’sine kadar güvenli günlük limit */
-  /* Bütçeyi bugün → +30 gün (yaklaşık 1 ay) aralığına yay */
-  const daysAhead  = remainingDays + 30;          // dönem sonu + 1 ay
-  const dailyLimit = remainingBudget / daysAhead; // negatif olabilir
+  const monthlyInterest = settings.dailyInterest * totalDays;
+  const dailyFixed = fixedTotal / totalDays;
+  const dailyLimit = settings.dailyInterest - dailyFixed;
 
   console.log(
     `spend: ${spent}\nfixed: ${fixedTotal}\navailable: ${availableToSpend}\nremaining: ${remainingBudget}`
@@ -232,6 +226,8 @@ const refresh = () => {
       val: `${remainingBudget.toFixed(0)} ₺`,
       color: remainingBudget < 0 ? "text-red-600" : "text-green-600",
     },
+    { label: "Günlük Faiz", val: `${settings.dailyInterest.toFixed(0)} ₺` },
+    { label: "Günlük Sabit Gider", val: `${dailyFixed.toFixed(0)} ₺` },
     {
       label: "Günlük Limit (30 gün)", val: `${dailyLimit.toFixed(0)} ₺`,
       color: dailyLimit < 0 ? "text-red-600" : ""
