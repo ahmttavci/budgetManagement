@@ -217,11 +217,6 @@ const refresh = () => {
     { label: "Mevcut Bakiye", val: `${settings.currentBalance.toFixed(0)} ₺` },
     { label: "Sabit Gider",    val: `${fixedTotal.toFixed(0)} ₺` },
     { label: "Harcanan",       val: `${spent.toFixed(0)} ₺` },
-    {
-      label: "Kalan Bütçe",
-      val: `${remainingBudget.toFixed(0)} ₺`,
-      color: remainingBudget < 0 ? "text-red-600" : "text-green-600",
-    },
     { label: "Günlük Faiz", val: `${settings.dailyInterest.toFixed(0)} ₺` },
     { label: "Günlük Sabit Gider", val: `${dailyFixed.toFixed(0)} ₺` },
     {
