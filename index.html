@@ -212,10 +212,6 @@ const refresh = () => {
   const dailyFixed = fixedTotal / totalDays;
   const dailyLimit = settings.dailyInterest - dailyFixed;
 
-  console.log(
-    `spend: ${spent}\nfixed: ${fixedTotal}\navailable: ${availableToSpend}\nremaining: ${remainingBudget}`
-  );
-
   /* 5. Özet kartları */
   const cards = [
     { label: "Mevcut Bakiye", val: `${settings.currentBalance.toFixed(0)} ₺` },
